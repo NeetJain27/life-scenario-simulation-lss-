@@ -1,10 +1,18 @@
+from pprint import pprint
+
 from core import (
     calculate_monthly_cash_flow,
     simulate_monthly_savings,
     can_reach_goal,
     required_monthly_saving,
-    saving_status
+    saving_status,
+    generate_recommendations,
+    format_recommendation_response,
+    build_api_response
 )
+
+
+
 
 
 def run_tests():
@@ -63,3 +71,36 @@ if __name__ == "__main__":
     )
     print("Expected on_track: True")
     print("Got:", status)
+
+    print("\nTest 8: Actionable recommendations")
+    rec = generate_recommendations(
+        monthly_income=50000,
+        monthly_expenses=42000,
+        goal_amount=60000,
+        months=6,
+        starting_savings=0
+    )
+    print("Got:", rec)
+
+    print("\nTest 9: Formatted recommendation response")
+    response = format_recommendation_response(
+        monthly_income=50000,
+        monthly_expenses=42000,
+        goal_amount=60000,
+        months=6,
+        starting_savings=0
+    )
+    print("Got:")
+    pprint(response)
+
+print("\nTest 10: API response contract")
+response = build_api_response(
+    monthly_income=50000,
+    monthly_expenses=42000,
+    goal_amount=60000,
+    months=6,
+    starting_savings=0
+)
+
+from pprint import pprint
+pprint(response)
