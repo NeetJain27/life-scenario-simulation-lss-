@@ -133,3 +133,121 @@ def saving_status(
         "shortfall": max(0, required_saving - current_saving)
     }
 
+def generate_recommendations(
+    monthly_income,
+    monthly_expenses,
+    goal_amount,
+    months,
+    starting_savings=0
+):
+    """
+    Generate actionable recommendations to reach a financial goal.
+
+    Returns:
+        dict: Recommendations for the user
+    """
+    status = saving_status(
+        monthly_income,
+        monthly_expenses,
+        goal_amount,
+        months,
+        starting_savings
+    )
+
+    if status["on_track"]:
+        return {
+            "status": "on_track",
+            "message": "You are on track to reach your goal. No changes needed."
+        }
+
+    shortfall = status["shortfall"]
+
+    return {
+        "status": "off_track",
+        "message": "You are not on track to reach your goal.",
+        "recommendations": {
+            "reduce_expenses_by": shortfall,
+            "increase_income_by": shortfall
+        }
+    }
+
+def format_recommendation_response(
+    monthly_income,
+    monthly_expenses,
+    goal_amount,
+    months,
+    starting_savings=0
+):
+    """
+    Format recommendations into a frontend-friendly response.
+    """
+    rec = generate_recommendations(
+        monthly_income,
+        monthly_expenses,
+        goal_amount,
+        months,
+        starting_savings
+    )
+
+    if rec["status"] == "on_track":
+        return {
+            "status": "on_track",
+            "severity": "low",
+            "summary": rec["message"],
+            "actions": []
+        }
+
+    shortfall = rec["recommendations"]["reduce_expenses_by"]
+
+    return {
+        "status": "off_track",
+        "severity": "medium",
+        "summary": rec["message"],
+        "actions": [
+            {
+                "type": "reduce_expenses",
+                "amount": shortfall,
+                "label": f"Reduce monthly expenses by ₹{shortfall}"
+            },
+            {
+                "type": "increase_income",
+                "amount": shortfall,
+                "label": f"Increase monthly income by ₹{shortfall}"
+            }
+        ]
+    }
+
+def build_api_response(
+    monthly_income,
+    monthly_expenses,
+    goal_amount,
+    months,
+    starting_savings=0
+):
+    """
+    Build a complete API-ready response for the frontend.
+    """
+    formatted = format_recommendation_response(
+        monthly_income,
+        monthly_expenses,
+        goal_amount,
+        months,
+        starting_savings
+    )
+
+    status = saving_status(
+        monthly_income,
+        monthly_expenses,
+        goal_amount,
+        months,
+        starting_savings
+    )
+
+    return {
+        **formatted,
+        "metrics": {
+            "current_monthly_saving": status["current_monthly_saving"],
+            "required_monthly_saving": status["required_monthly_saving"],
+            "shortfall": status["shortfall"]
+        }
+    }

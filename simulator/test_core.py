@@ -1,4 +1,19 @@
-from core import calculate_monthly_cash_flow,simulate_monthly_savings,can_reach_goal,required_monthly_saving,saving_status
+from pprint import pprint
+
+from core import (
+    calculate_monthly_cash_flow,
+    simulate_monthly_savings,
+    can_reach_goal,
+    required_monthly_saving,
+    saving_status,
+    generate_recommendations,
+    format_recommendation_response,
+    build_api_response
+)
+
+
+
+
 
 def run_tests():
     print("Test 1: Positive cash flow")
@@ -12,6 +27,9 @@ def run_tests():
     print("\nTest 3: Negative cash flow")
     result = calculate_monthly_cash_flow(25000, 30000)
     print("Expected: -5000, Got:", result)
+
+if __name__ == "__main__":
+    run_tests()
 
     print("\nTest 4: Multi-month savings simulation")
     timeline = simulate_monthly_savings(
@@ -54,9 +72,35 @@ def run_tests():
     print("Expected on_track: True")
     print("Got:", status)
 
+    print("\nTest 8: Actionable recommendations")
+    rec = generate_recommendations(
+        monthly_income=50000,
+        monthly_expenses=42000,
+        goal_amount=60000,
+        months=6,
+        starting_savings=0
+    )
+    print("Got:", rec)
 
+    print("\nTest 9: Formatted recommendation response")
+    response = format_recommendation_response(
+        monthly_income=50000,
+        monthly_expenses=42000,
+        goal_amount=60000,
+        months=6,
+        starting_savings=0
+    )
+    print("Got:")
+    pprint(response)
 
+print("\nTest 10: API response contract")
+response = build_api_response(
+    monthly_income=50000,
+    monthly_expenses=42000,
+    goal_amount=60000,
+    months=6,
+    starting_savings=0
+)
 
-
-if __name__ == "__main__":
-    run_tests()
+from pprint import pprint
+pprint(response)
