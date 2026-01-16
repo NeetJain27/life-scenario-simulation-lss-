@@ -1,18 +1,19 @@
 import { useState } from "react";
 
 export default function InputForm({ onSimulate }) {
-  const [income, setIncome] = useState("");
-  const [expenses, setExpenses] = useState("");
-  const [goal, setGoal] = useState("");
+  const [monthly_income, setIncome] = useState("");
+  const [monthly_expenses, setExpenses] = useState("");
+  const [goal_amount, setGoal] = useState("");
   const [months, setMonths] = useState("");
 
   function handleSimulate() {
    const data = {
-    income,
-    expenses,
-    goal,
+    monthly_income,
+    monthly_expenses,
+    goal_amount,
     months,
   };
+  
 
   console.log("Sending to App:", data);
   onSimulate(data);
@@ -24,19 +25,19 @@ export default function InputForm({ onSimulate }) {
 
       <input
         placeholder="Monthly Income"
-        value={income}
+        value={monthly_income}
         onChange={(e) => setIncome(e.target.value)}
       /><br /><br />
 
       <input
         placeholder="Monthly Expenses"
-        value={expenses}
+        value={monthly_expenses}
         onChange={(e) => setExpenses(e.target.value)}
       /><br /><br />
 
       <input
         placeholder="Goal Amount"
-        value={goal}
+        value={goal_amount}
         onChange={(e) => setGoal(e.target.value)}
       /><br /><br />
 

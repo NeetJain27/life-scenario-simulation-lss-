@@ -1,3 +1,4 @@
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 from pydantic import BaseModel
 
@@ -5,6 +6,13 @@ from simulator.core import build_api_response
 
 app = FastAPI(title="Life Scenario Simulator API")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class SimulationRequest(BaseModel):
     monthly_income: float
