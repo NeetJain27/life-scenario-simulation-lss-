@@ -1,0 +1,70 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #eef1f5;
+  color: #222;
+}
+
+.app {
+  padding: 20px;
+  text-align: center;
+}
+
+h1 {
+  color: #222;
+}
+
+.layout {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.layout > div {
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 10px;
+  width: 320px;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+}
+
+h2, h3 {
+  color: #333;
+}
+
+/* Inputs */
+input {
+  width: 90%;
+  padding: 10px;
+  margin: 8px 0;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  background: #fafafa;
+  color: #222;
+}
+
+input::placeholder {
+  color: #777;
+}
+
+/* Button */
+button {
+  padding: 10px 25px;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+button:hover {
+  background: #43a047;
+}
+
+/* Result text */
+p {
+  color: #333;
+}
