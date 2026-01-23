@@ -7,6 +7,8 @@ import "./App.css";
 export default function App() {
   const [showResults, setShowResults] = useState(false);
   const [resultData, setResultData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
 
   async function handleSimulate(data) {
   const payload = {
@@ -20,12 +22,15 @@ export default function App() {
   console.log("Payload sent to backend:", payload);
 
   try {
+    setIsLoading(true);
     const result = await simulateLifeScenario(payload);
     console.log("Backend response:", result);
     setResultData(result);
     setShowResults(true);
   } catch (error) {
     console.error("Simulation failed:", error);
+  }finally {
+    setIsLoading(false); // 🔴 STOP loading
   }
 }
 

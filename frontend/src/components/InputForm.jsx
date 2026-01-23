@@ -1,23 +1,22 @@
 import { useState } from "react";
 
-export default function InputForm({ onSimulate }) {
+export default function InputForm({ onSimulate, isLoading }) {
   const [monthly_income, setIncome] = useState("");
   const [monthly_expenses, setExpenses] = useState("");
   const [goal_amount, setGoal] = useState("");
   const [months, setMonths] = useState("");
 
   function handleSimulate() {
-   const data = {
-    monthly_income,
-    monthly_expenses,
-    goal_amount,
-    months,
-  };
-  
+    const data = {
+      monthly_income,
+      monthly_expenses,
+      goal_amount,
+      months,
+    };
 
-  console.log("Sending to App:", data);
-  onSimulate(data);
-}
+    console.log("Sending to App:", data);
+    onSimulate(data);
+  }
 
   return (
     <div>
@@ -47,7 +46,9 @@ export default function InputForm({ onSimulate }) {
         onChange={(e) => setMonths(e.target.value)}
       /><br /><br />
 
-      <button onClick={handleSimulate}>Simulate</button>
+      <button onClick={handleSimulate} disabled={isLoading}>
+        {isLoading ? "Simulating..." : "Simulate"}
+      </button>
     </div>
   );
 }
