@@ -53,8 +53,9 @@ export default function App() {
       setResultData(result);
       setShowResults(true);
     } catch (err) {
-      console.error("Simulation failed:", err);
-      setError("Unable to reach the server. Please check your connection and try again.");
+      setError(
+        "Unable to reach the server. Please check your connection and try again."
+      );
       setShowResults(false);
     } finally {
       setIsLoading(false);
@@ -64,6 +65,11 @@ export default function App() {
   return (
     <div className="app">
       <h1>Life Scenario Simulator</h1>
+
+      <p className="app-description">
+        Enter your monthly income, expenses, target amount, and time period to
+        see if you are on track to reach your financial goal.
+      </p>
 
       <div className="layout">
         <InputForm

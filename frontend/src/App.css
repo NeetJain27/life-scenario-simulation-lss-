@@ -14,6 +14,11 @@ h1 {
   color: #222;
 }
 
+.app-description {
+  color: #555;
+  margin-bottom: 20px;
+}
+
 .layout {
   display: flex;
   justify-content: center;
@@ -68,3 +73,13 @@ button:hover {
 p {
   color: #333;
 }
+
+.results-panel h3 {
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.results-panel {
+  max-width: 500px;
+}
+
