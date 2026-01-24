@@ -1,10 +1,16 @@
 import { useState } from "react";
 
 export default function InputForm({ onSimulate, isLoading }) {
+  console.log("InputForm isLoading:", isLoading);
   const [monthly_income, setIncome] = useState("");
   const [monthly_expenses, setExpenses] = useState("");
   const [goal_amount, setGoal] = useState("");
   const [months, setMonths] = useState("");
+  const isFormValid =
+  monthly_income > 0 &&
+  monthly_expenses >= 0 &&
+  goal_amount > 0 &&
+  months > 0;
 
   function handleSimulate() {
     const data = {
@@ -46,7 +52,11 @@ export default function InputForm({ onSimulate, isLoading }) {
         onChange={(e) => setMonths(e.target.value)}
       /><br /><br />
 
-      <button onClick={handleSimulate} disabled={isLoading}>
+      <button onClick={handleSimulate} disabled={isLoading || !isFormValid}
+        style={{
+        opacity: isLoading || !isFormValid ? 0.6 : 1,
+        cursor: isLoading || !isFormValid ? "not-allowed" : "pointer",
+        }}>
         {isLoading ? "Simulating..." : "Simulate"}
       </button>
     </div>
