@@ -1,8 +1,11 @@
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 from pydantic import BaseModel
+from backend.api.ai import router as ai_router
 
-from simulator.core import build_api_response
+
+from backend.simulator.core import build_api_response
+
 
 app = FastAPI(title="Life Scenario Simulator API")
 
@@ -14,12 +17,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ✅ ADD THIS LINE
+app.include_router(ai_router)
+
 class SimulationRequest(BaseModel):
     monthly_income: float
     monthly_expenses: float
     goal_amount: float
     months: int
     starting_savings: float = 0
+
+@app.get("/")
+def root():
+    return {"status": "Life Scenario Simulator API is running"}
 
 
 @app.post("/simulate")
