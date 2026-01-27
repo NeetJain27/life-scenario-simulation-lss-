@@ -9,6 +9,8 @@ export default function App() {
   const [resultData, setResultData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [aiInsight, setAiInsight] = useState(null);
+
 
   async function handleSimulate(data) {
     const payload = {
@@ -50,7 +52,8 @@ export default function App() {
 
       const result = await simulateLifeScenario(payload);
 
-      setResultData(result);
+      setResultData(result.simulation);
+      setAiInsight(result.ai_insight);
       setShowResults(true);
     } catch (err) {
       setError(
@@ -79,7 +82,13 @@ export default function App() {
 
         {error && <p style={{ color: "red" }}>{error}</p>}
 
-        {showResults && <ResultsPanel result={resultData} />}
+        {showResults && (
+        <ResultsPanel
+          result={resultData}
+          aiInsight={aiInsight}
+        />
+      )}
+
       </div>
     </div>
   );

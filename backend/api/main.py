@@ -2,6 +2,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 from pydantic import BaseModel
 from backend.api.ai import router as ai_router
+from backend.api.ai import generate_ai_insight, SimulationInput
 
 
 from backend.simulator.core import build_api_response
@@ -34,11 +35,30 @@ def root():
 
 @app.post("/simulate")
 def simulate_life_scenario(request: SimulationRequest):
-    response = build_api_response(
+    # 1️⃣ Run financial simulation
+    simulation_result = build_api_response(
         monthly_income=request.monthly_income,
         monthly_expenses=request.monthly_expenses,
         goal_amount=request.goal_amount,
         months=request.months,
         starting_savings=request.starting_savings
     )
-    return response
+
+    # 2️⃣ Prepare AI input
+    ai_input = SimulationInput(
+        monthly_income=request.monthly_income,
+        monthly_expenses=request.monthly_expenses,
+        goal_amount=request.goal_amount,
+        months=request.months,
+        status=simulation_result["status"]
+    )
+
+    # 3️⃣ Generate AI insight (internal call)
+    ai_insight = generate_ai_insight(ai_input)
+
+    # 4️⃣ Return combined response
+    return {
+        "simulation": simulation_result,
+        "ai_insight": ai_insight
+    }
+    

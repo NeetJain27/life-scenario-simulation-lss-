@@ -1,4 +1,4 @@
-export default function ResultsPanel({ result }) {
+export default function ResultsPanel({ result, aiInsight }) {
   if (!result) return null;
 
   const { status, severity, summary, metrics, actions } = result;
@@ -30,14 +30,13 @@ export default function ResultsPanel({ result }) {
       <p style={{ marginBottom: "16px" }}>
         {status === "on_track" ? (
           <strong>
-            ✅ Based on your current income and expenses, you can
-            continue with your existing plan and still reach your goal.
+            ✅ Based on your current income and expenses, you can continue
+            with your existing plan and still reach your goal.
           </strong>
         ) : (
           <strong>
             ⚠️ With your current income and expenses, you may need to
-            adjust your spending, increase income, or extend your
-            timeline to reach this goal.
+            adjust your spending, increase income, or extend your timeline.
           </strong>
         )}
       </p>
@@ -72,6 +71,67 @@ export default function ResultsPanel({ result }) {
               <li key={index}>{action.label}</li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* ✅ AI Insight Section (NOW INSIDE RETURN) */}
+      {aiInsight && (
+        <div
+          className="ai-insight"
+          style={{
+            marginTop: "24px",
+            padding: "16px",
+            borderRadius: "8px",
+            backgroundColor: "#f6f9ff",
+            borderLeft: `6px solid ${
+              aiInsight.risk_level === "high"
+                ? "red"
+                : aiInsight.risk_level === "medium"
+                ? "orange"
+                : "green"
+            }`,
+          }}
+        >
+          <h3>🤖 AI Financial Insight</h3>
+
+          <p style={{ marginBottom: "12px" }}>
+            {aiInsight.insight}
+          </p>
+
+          <p>
+            <strong>Risk Level:</strong>{" "}
+            <span
+              style={{
+                color:
+                  aiInsight.risk_level === "high"
+                    ? "red"
+                    : aiInsight.risk_level === "medium"
+                    ? "orange"
+                    : "green",
+                fontWeight: "bold",
+              }}
+            >
+              {aiInsight.risk_level.toUpperCase()}
+            </span>
+          </p>
+
+          <p>
+            <strong>Confidence:</strong>{" "}
+            {Math.round(aiInsight.confidence * 100)}%
+          </p>
+
+          {aiInsight.recommendations?.length > 0 && (
+            <>
+              <h4 style={{ marginTop: "12px" }}>
+                AI Recommendations
+              </h4>
+              <ul>
+                {aiInsight.recommendations.map((rec, idx) => (
+                  <li key={idx}>{rec}</li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       )}
     </div>
