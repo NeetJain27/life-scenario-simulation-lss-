@@ -29,13 +29,12 @@ class AIInsightResponse(BaseModel):
 # ----------- AI Insights Endpoint -----------
 
 @router.post("/insights", response_model=AIInsightResponse)
-def generate_ai_insight(data: SimulationInput):
+def generate_ai_insight(data: SimulationInput, session_id: str):
     """
     MEMORY-AWARE AI INSIGHT GENERATOR (v2)
     Uses past simulations to generate contextual advice.
     """
 
-    session_id = "demo-user"
     history = get_simulation_history(session_id)
 
     insight_lines = []
