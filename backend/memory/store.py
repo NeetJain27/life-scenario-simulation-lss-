@@ -1,27 +1,74 @@
-# backend/memory/store.py
+from backend.memory.db import get_connection
 
-from collections import defaultdict
-from typing import List, Dict
+def init_db():
+    conn = get_connection()
+    cursor = conn.cursor()
 
-# In-memory store (session-based for now)
-_memory_store: Dict[str, List[dict]] = defaultdict(list)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS simulations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT,
+            monthly_income REAL,
+            monthly_expenses REAL,
+            goal_amount REAL,
+            months INTEGER,
+            status TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
 
-MAX_HISTORY = 5  # keep last 5 simulations
+    conn.commit()
+    conn.close()
 
 
 def add_simulation(session_id: str, simulation: dict):
-    """
-    Store a simulation result for a session/user
-    """
-    _memory_store[session_id].append(simulation)
+    conn = get_connection()
+    cursor = conn.cursor()
 
-    # keep only last N entries
-    if len(_memory_store[session_id]) > MAX_HISTORY:
-        _memory_store[session_id] = _memory_store[session_id][-MAX_HISTORY:]
-    print(f"[MEMORY] Stored {len(_memory_store[session_id])} simulations for {session_id}")
+    cursor.execute("""
+        INSERT INTO simulations (
+            session_id,
+            monthly_income,
+            monthly_expenses,
+            goal_amount,
+            months,
+            status
+        ) VALUES (?, ?, ?, ?, ?, ?)
+    """, (
+        session_id,
+        simulation["monthly_income"],
+        simulation["monthly_expenses"],
+        simulation["goal_amount"],
+        simulation["months"],
+        simulation["status"]
+    ))
 
-def get_simulation_history(session_id: str) -> List[dict]:
-    """
-    Get past simulations for a session/user
-    """
-    return _memory_store.get(session_id, [])
+    conn.commit()
+    conn.close()
+
+
+def get_simulation_history(session_id: str, limit: int = 5):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT monthly_income, monthly_expenses, goal_amount, months, status
+        FROM simulations
+        WHERE session_id = ?
+        ORDER BY created_at DESC
+        LIMIT ?
+    """, (session_id, limit))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [
+        {
+            "monthly_income": r[0],
+            "monthly_expenses": r[1],
+            "goal_amount": r[2],
+            "months": r[3],
+            "status": r[4]
+        }
+        for r in reversed(rows)
+    ]

@@ -5,12 +5,14 @@ from pydantic import BaseModel
 from backend.api.ai import router as ai_router
 from backend.api.ai import generate_ai_insight, SimulationInput
 from backend.memory.store import add_simulation
+from backend.memory.store import init_db
 
 
 from backend.simulator.core import build_api_response
 
 
 app = FastAPI(title="Life Scenario Simulator API")
+init_db()
 
 app.add_middleware(
     CORSMiddleware,
