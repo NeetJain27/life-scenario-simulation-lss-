@@ -21,7 +21,7 @@ def init_db():
     conn.close()
 
 
-def add_simulation(session_id: str, simulation: dict):
+def add_simulation(user_id: int, simulation: dict):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -35,7 +35,7 @@ def add_simulation(session_id: str, simulation: dict):
             status
         ) VALUES (?, ?, ?, ?, ?, ?)
     """, (
-        session_id,
+        str(user_id),
         simulation["monthly_income"],
         simulation["monthly_expenses"],
         simulation["goal_amount"],
@@ -47,7 +47,7 @@ def add_simulation(session_id: str, simulation: dict):
     conn.close()
 
 
-def get_simulation_history(session_id: str, limit: int = 5):
+def get_simulation_history(user_id: int, limit: int = 5):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -57,7 +57,7 @@ def get_simulation_history(session_id: str, limit: int = 5):
         WHERE session_id = ?
         ORDER BY created_at DESC
         LIMIT ?
-    """, (session_id, limit))
+    """, (str(user_id), limit))
 
     rows = cursor.fetchall()
     conn.close()

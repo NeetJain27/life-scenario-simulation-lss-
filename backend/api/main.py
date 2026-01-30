@@ -7,6 +7,11 @@ from backend.api.ai import generate_ai_insight, SimulationInput
 from backend.memory.store import add_simulation
 from backend.memory.store import init_db
 from fastapi import Request, Response
+from backend.auth.users import init_users_table
+from backend.auth.routes import router as auth_router
+from fastapi import Depends
+from backend.auth.dependencies import get_current_user
+
 
 
 from backend.simulator.core import build_api_response
@@ -14,6 +19,7 @@ from backend.simulator.core import build_api_response
 
 app = FastAPI(title="Life Scenario Simulator API")
 init_db()
+init_users_table()
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,6 +31,7 @@ app.add_middleware(
 
 # ✅ ADD THIS LINE
 app.include_router(ai_router)
+app.include_router(auth_router)
 
 class SimulationRequest(BaseModel):
     monthly_income: float
@@ -41,20 +48,10 @@ def root():
 @app.post("/simulate")
 def simulate_life_scenario(
     request: SimulationRequest,
-    http_request: Request,
-    response: Response
+    current_user: dict = Depends(get_current_user)
 ):
-    # 1️⃣ Get or create session ID
-    session_id = http_request.cookies.get("session_id")
-
-    if not session_id:
-        session_id = str(uuid.uuid4())
-        response.set_cookie(
-            key="session_id",
-            value=session_id,
-            httponly=True,
-            samesite="lax"
-        )
+    # 1️⃣ Get authenticated user ID
+    user_id = current_user["id"]
 
     # 2️⃣ Run financial simulation
     simulation_result = build_api_response(
@@ -65,9 +62,9 @@ def simulate_life_scenario(
         starting_savings=request.starting_savings
     )
 
-    # 3️⃣ Save to persistent memory (USER-SPECIFIC)
+    # 3️⃣ Save simulation to persistent memory (USER-SPECIFIC)
     add_simulation(
-        session_id,
+        user_id,
         {
             "monthly_income": request.monthly_income,
             "monthly_expenses": request.monthly_expenses,
@@ -86,7 +83,7 @@ def simulate_life_scenario(
         status=simulation_result["status"]
     )
 
-    ai_insight = generate_ai_insight(ai_input, session_id=session_id)
+    ai_insight = generate_ai_insight(ai_input, user_id=user_id)
 
     # 5️⃣ Return response
     return {
