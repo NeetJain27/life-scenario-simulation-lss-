@@ -11,7 +11,7 @@ def get_current_user(request: Request):
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = int(payload.get("sub"))
+        user_id = int(payload.get("user_id"))  # 🔴 FIXED LINE
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 

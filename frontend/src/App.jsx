@@ -1,16 +1,18 @@
 import { useState } from "react";
 import InputForm from "./components/InputForm";
 import ResultsPanel from "./components/ResultsPanel";
+import Login from "./components/Login";
 import { simulateLifeScenario } from "./api/simulate";
 import "./App.css";
 
 export default function App() {
+  const [isAuthed, setIsAuthed] = useState(false);
+
   const [showResults, setShowResults] = useState(false);
   const [resultData, setResultData] = useState(null);
+  const [aiInsight, setAiInsight] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [aiInsight, setAiInsight] = useState(null);
-
 
   async function handleSimulate(data) {
     const payload = {
@@ -21,7 +23,7 @@ export default function App() {
       starting_savings: 0,
     };
 
-    // ✅ INPUT VALIDATION
+    // ✅ Input validation
     if (
       !payload.monthly_income ||
       !payload.monthly_expenses ||
@@ -44,7 +46,6 @@ export default function App() {
       return;
     }
 
-    // Clear error if validation passes
     setError("");
 
     try {
@@ -56,13 +57,23 @@ export default function App() {
       setAiInsight(result.ai_insight);
       setShowResults(true);
     } catch (err) {
-      setError(
-        "Unable to reach the server. Please check your connection and try again."
-      );
+      if (err.message === "Not authenticated") {
+        setError("Session expired. Please log in again.");
+        return;
+      } else {
+        setError(
+          "Unable to reach the server. Please check your connection and try again."
+        );
+      }
       setShowResults(false);
     } finally {
       setIsLoading(false);
     }
+  }
+
+  // 🔐 AUTH GATE
+  if (!isAuthed) {
+    return <Login onAuth={() => setIsAuthed(true)} />;
   }
 
   return (
@@ -75,20 +86,13 @@ export default function App() {
       </p>
 
       <div className="layout">
-        <InputForm
-          onSimulate={handleSimulate}
-          isLoading={isLoading}
-        />
+        <InputForm onSimulate={handleSimulate} isLoading={isLoading} />
 
         {error && <p style={{ color: "red" }}>{error}</p>}
 
         {showResults && (
-        <ResultsPanel
-          result={resultData}
-          aiInsight={aiInsight}
-        />
-      )}
-
+          <ResultsPanel result={resultData} aiInsight={aiInsight} />
+        )}
       </div>
     </div>
   );

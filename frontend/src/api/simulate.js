@@ -1,11 +1,16 @@
 export async function simulateLifeScenario(payload) {
-  const response = await fetch("http://127.0.0.1:8000/simulate", {
+  const response = await fetch("http://localhost:8000/simulate", {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     },
-    body: JSON.stringify(payload)
+    credentials: "include", // ✅ send auth cookie
+    body: JSON.stringify(payload),
   });
+
+  if (response.status === 401) {
+    throw new Error("Not authenticated");
+  }
 
   if (!response.ok) {
     throw new Error("Backend request failed");
@@ -13,4 +18,3 @@ export async function simulateLifeScenario(payload) {
 
   return await response.json();
 }
-
