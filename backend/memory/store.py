@@ -7,14 +7,20 @@ def init_db():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS simulations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT,
-            monthly_income REAL,
-            monthly_expenses REAL,
-            goal_amount REAL,
-            months INTEGER,
-            status TEXT,
+            user_id INTEGER NOT NULL,
+            monthly_income REAL NOT NULL,
+            monthly_expenses REAL NOT NULL,
+            goal_amount REAL NOT NULL,
+            months INTEGER NOT NULL,
+            status TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
+    """)
+
+    # 🔹 Optional but recommended for performance
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_simulations_user_id
+        ON simulations (user_id)
     """)
 
     conn.commit()
@@ -27,7 +33,7 @@ def add_simulation(user_id: int, simulation: dict):
 
     cursor.execute("""
         INSERT INTO simulations (
-            session_id,
+            user_id,
             monthly_income,
             monthly_expenses,
             goal_amount,
@@ -35,7 +41,7 @@ def add_simulation(user_id: int, simulation: dict):
             status
         ) VALUES (?, ?, ?, ?, ?, ?)
     """, (
-        str(user_id),
+        user_id,
         simulation["monthly_income"],
         simulation["monthly_expenses"],
         simulation["goal_amount"],
@@ -47,17 +53,23 @@ def add_simulation(user_id: int, simulation: dict):
     conn.close()
 
 
-def get_simulation_history(user_id: int, limit: int = 5):
+def get_user_simulations(user_id: int, limit: int = 10):
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT monthly_income, monthly_expenses, goal_amount, months, status
+        SELECT
+            monthly_income,
+            monthly_expenses,
+            goal_amount,
+            months,
+            status,
+            created_at
         FROM simulations
-        WHERE session_id = ?
+        WHERE user_id = ?
         ORDER BY created_at DESC
         LIMIT ?
-    """, (str(user_id), limit))
+    """, (user_id, limit))
 
     rows = cursor.fetchall()
     conn.close()
@@ -68,7 +80,8 @@ def get_simulation_history(user_id: int, limit: int = 5):
             "monthly_expenses": r[1],
             "goal_amount": r[2],
             "months": r[3],
-            "status": r[4]
+            "status": r[4],
+            "created_at": r[5],
         }
-        for r in reversed(rows)
+        for r in rows
     ]

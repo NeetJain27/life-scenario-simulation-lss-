@@ -2,7 +2,8 @@ from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel
 from backend.auth.db import get_connection
 from backend.auth.security import hash_password, verify_password, create_access_token
-
+from fastapi import Depends
+from backend.auth.dependencies import get_current_user
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 class RegisterRequest(BaseModel):
@@ -61,3 +62,18 @@ def login(data: LoginRequest, response: Response):
     )
 
     return {"message": "Login successful"}
+
+@router.get("/me")
+def get_me(current_user: dict = Depends(get_current_user)):
+    return {
+        "id": current_user["id"],
+        "email": current_user["email"]
+    }
+
+@router.post("/logout")
+def logout(response: Response):
+    response.delete_cookie(
+        key="access_token",
+        path="/"
+    )
+    return {"message": "Logged out"}

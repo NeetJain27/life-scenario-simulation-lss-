@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import List
-from backend.memory.store import get_simulation_history
+from backend.memory.store import get_user_simulations
 
 
 router = APIRouter(prefix="/ai", tags=["AI"])
@@ -35,7 +35,7 @@ def generate_ai_insight(data: SimulationInput, user_id: int):
     Uses past simulations to generate contextual advice.
     """
 
-    history = get_simulation_history(user_id)
+    history = get_user_simulations(user_id)
 
     insight_lines = []
     recommendations = []
