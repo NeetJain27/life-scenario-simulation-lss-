@@ -11,30 +11,35 @@ export default function App() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
 
+  const [formData, setFormData] = useState({
+    monthly_income: "",
+    monthly_expenses: "",
+    goal_amount: "",
+    months: "",
+  });
+
   const [showResults, setShowResults] = useState(false);
   const [resultData, setResultData] = useState(null);
   const [aiInsight, setAiInsight] = useState(null);
   const [history, setHistory] = useState([]);
+  const [selectedHistoryKey, setSelectedHistoryKey] = useState(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // 🔐 SESSION PERSISTENCE + LOAD HISTORY
+  // 🔐 SESSION + HISTORY
   useEffect(() => {
     async function checkSession() {
       try {
         await getMe();
         setIsAuthed(true);
-
-        const historyData = await fetchSimulationHistory();
-        setHistory(historyData);
+        setHistory(await fetchSimulationHistory());
       } catch {
         setIsAuthed(false);
       } finally {
         setCheckingSession(false);
       }
     }
-
     checkSession();
   }, []);
 
@@ -42,34 +47,30 @@ export default function App() {
   async function handleLogout() {
     await logout();
     setIsAuthed(false);
+    setFormData({
+      monthly_income: "",
+      monthly_expenses: "",
+      goal_amount: "",
+      months: "",
+    });
     setShowResults(false);
     setResultData(null);
     setAiInsight(null);
     setHistory([]);
+    setSelectedHistoryKey(null);
     setError("");
   }
 
-  async function handleSimulate(data) {
+  async function handleSimulate() {
     const payload = {
-      monthly_income: Number(data.monthly_income),
-      monthly_expenses: Number(data.monthly_expenses),
-      goal_amount: Number(data.goal_amount),
-      months: Number(data.months),
+      monthly_income: Number(formData.monthly_income),
+      monthly_expenses: Number(formData.monthly_expenses),
+      goal_amount: Number(formData.goal_amount),
+      months: Number(formData.months),
       starting_savings: 0,
     };
 
-    // ✅ Validation
-    if (
-      !payload.monthly_income ||
-      !payload.monthly_expenses ||
-      !payload.goal_amount ||
-      !payload.months
-    ) {
-      setError("All fields are required.");
-      setShowResults(false);
-      return;
-    }
-
+    // ✅ Correct validation
     if (
       payload.monthly_income <= 0 ||
       payload.monthly_expenses < 0 ||
@@ -77,75 +78,74 @@ export default function App() {
       payload.months <= 0
     ) {
       setError("Please enter valid positive numbers.");
-      setShowResults(false);
       return;
     }
 
-    setError("");
-
     try {
       setIsLoading(true);
+      setError("");
 
       const result = await simulateLifeScenario(payload);
       setResultData(result.simulation);
       setAiInsight(result.ai_insight);
       setShowResults(true);
-
-      // 🔄 Refresh history after simulate
-      const historyData = await fetchSimulationHistory();
-      setHistory(historyData);
-    } catch (err) {
-      if (err.message === "Not authenticated") {
-        setError("Session expired. Please log in again.");
-      } else {
-        setError(
-          "Unable to reach the server. Please check your connection and try again."
-        );
-      }
-      setShowResults(false);
+      setHistory(await fetchSimulationHistory());
+    } catch {
+      setError("Unable to simulate.");
     } finally {
       setIsLoading(false);
     }
   }
 
-  // ⏳ Loading session
-  if (checkingSession) {
-    return <p style={{ padding: "2rem" }}>Checking session…</p>;
+  // 📝 HISTORY CLICK → PREFILL ONLY
+  function handleHistorySelect(item) {
+    const key = `${item.created_at}-${item.monthly_income}-${item.goal_amount}`;
+    setSelectedHistoryKey(key);
+
+    setFormData({
+      monthly_income: item.monthly_income,
+      monthly_expenses: item.monthly_expenses,
+      goal_amount: item.goal_amount,
+      months: item.months,
+    });
+
+    setShowResults(false);
   }
 
-  // 🔐 AUTH GATE
-  if (!isAuthed) {
-    return <Login onAuth={() => setIsAuthed(true)} />;
-  }
+  if (checkingSession) return <p>Checking session…</p>;
+  if (!isAuthed) return <Login onAuth={() => setIsAuthed(true)} />;
 
   return (
     <div className="app">
-      {/* 🔓 LOGOUT */}
-      <button
-        onClick={handleLogout}
-        style={{ float: "right", marginBottom: "1rem" }}
-      >
+      <button onClick={handleLogout} style={{ float: "right" }}>
         Logout
       </button>
 
-      <h1>Life Scenario Simulator</h1>
-
-      <p className="app-description">
-        Enter your monthly income, expenses, target amount, and time period to
-        see if you are on track to reach your financial goal.
-      </p>
-
       <div className="layout">
-        <InputForm onSimulate={handleSimulate} isLoading={isLoading} />
+        {/* LEFT */}
+        <div className="left">
+          <InputForm
+            formData={formData}
+            setFormData={setFormData}
+            onSimulate={handleSimulate}
+            isLoading={isLoading}
+          />
 
-        {error && <p style={{ color: "red" }}>{error}</p>}
+          {error && <p style={{ color: "red" }}>{error}</p>}
 
-        {showResults && (
-          <ResultsPanel result={resultData} aiInsight={aiInsight} />
-        )}
+          {showResults && (
+            <ResultsPanel result={resultData} aiInsight={aiInsight} />
+          )}
+        </div>
 
-        {/* 📜 SIMULATION HISTORY */}
-        <HistoryPanel history={history} />
+        {/* RIGHT */}
+        <div className="right">
+          <HistoryPanel
+            history={history}
+            selectedKey={selectedHistoryKey}
+            onSelect={handleHistorySelect}
+          />
+        </div>
       </div>
     </div>
   );

@@ -1,26 +1,20 @@
-import { useState } from "react";
-
-export default function InputForm({ onSimulate, isLoading }) {
-  const [monthly_income, setIncome] = useState("");
-  const [monthly_expenses, setExpenses] = useState("");
-  const [goal_amount, setGoal] = useState("");
-  const [months, setMonths] = useState("");
-
+export default function InputForm({
+  formData,
+  setFormData,
+  onSimulate,
+  isLoading,
+}) {
   const isFormValid =
-    monthly_income > 0 &&
-    monthly_expenses >= 0 &&
-    goal_amount > 0 &&
-    months > 0;
+    Number(formData.monthly_income) > 0 &&
+    Number(formData.monthly_expenses) >= 0 &&
+    Number(formData.goal_amount) > 0 &&
+    Number(formData.months) > 0;
 
-  function handleSimulate() {
-    const data = {
-      monthly_income,
-      monthly_expenses,
-      goal_amount,
-      months,
-    };
-
-    onSimulate(data);
+  function handleChange(e) {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
   }
 
   return (
@@ -28,35 +22,39 @@ export default function InputForm({ onSimulate, isLoading }) {
       <h2>Enter Your Details</h2>
 
       <input
+        name="monthly_income"
         placeholder="Monthly Income"
-        value={monthly_income}
-        onChange={(e) => setIncome(e.target.value)}
+        value={formData.monthly_income}
+        onChange={handleChange}
       />
       <br /><br />
 
       <input
+        name="monthly_expenses"
         placeholder="Monthly Expenses"
-        value={monthly_expenses}
-        onChange={(e) => setExpenses(e.target.value)}
+        value={formData.monthly_expenses}
+        onChange={handleChange}
       />
       <br /><br />
 
       <input
+        name="goal_amount"
         placeholder="Goal Amount"
-        value={goal_amount}
-        onChange={(e) => setGoal(e.target.value)}
+        value={formData.goal_amount}
+        onChange={handleChange}
       />
       <br /><br />
 
       <input
+        name="months"
         placeholder="Time (months)"
-        value={months}
-        onChange={(e) => setMonths(e.target.value)}
+        value={formData.months}
+        onChange={handleChange}
       />
       <br /><br />
 
       <button
-        onClick={handleSimulate}
+        onClick={onSimulate}
         disabled={isLoading || !isFormValid}
         style={{
           opacity: isLoading || !isFormValid ? 0.6 : 1,
