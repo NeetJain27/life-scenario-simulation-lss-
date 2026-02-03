@@ -2,6 +2,7 @@ export default function HistoryPanel({
   history = [],
   selectedKey,
   onSelect,
+  onDelete, // 🆕 NEW PROP
 }) {
   return (
     <div style={{ marginTop: "2rem" }}>
@@ -11,7 +12,7 @@ export default function HistoryPanel({
         <p>No previous simulations yet.</p>
       )}
 
-      {history.map((item, idx) => {
+      {history.map((item) => {
         const key = `${item.created_at}-${item.monthly_income}-${item.goal_amount}`;
         const isSelected = key === selectedKey;
 
@@ -26,10 +27,32 @@ export default function HistoryPanel({
               borderRadius: "6px",
               background: isSelected ? "#eef2ff" : "#fafafa",
               cursor: "pointer",
+              position: "relative",
               transition: "all 0.15s ease",
             }}
           >
-            <p><strong>Status:</strong> {item.status}</p>
+            {/* 🗑 DELETE BUTTON */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // 🔴 IMPORTANT
+                onDelete(item.id);
+              }}
+              style={{
+                position: "absolute",
+                top: "8px",
+                right: "8px",
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                color: "#dc2626",
+                fontSize: "16px",
+                fontWeight: "bold",
+              }}
+              title="Delete simulation"
+            >
+              ✕
+            </button>
+
             <p>Income: ₹{item.monthly_income}</p>
             <p>Expenses: ₹{item.monthly_expenses}</p>
             <p>Goal: ₹{item.goal_amount}</p>

@@ -59,6 +59,7 @@ def get_user_simulations(user_id: int, limit: int = 10):
 
     cursor.execute("""
         SELECT
+            id,
             monthly_income,
             monthly_expenses,
             goal_amount,
@@ -76,12 +77,25 @@ def get_user_simulations(user_id: int, limit: int = 10):
 
     return [
         {
-            "monthly_income": r[0],
-            "monthly_expenses": r[1],
-            "goal_amount": r[2],
-            "months": r[3],
-            "status": r[4],
-            "created_at": r[5],
+            "id": r[0],
+            "monthly_income": r[1],
+            "monthly_expenses": r[2],
+            "goal_amount": r[3],
+            "months": r[4],
+            "status": r[5],
+            "created_at": r[6],
         }
         for r in rows
     ]
+
+def delete_simulation(simulation_id: int, user_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        DELETE FROM simulations
+        WHERE id = ? AND user_id = ?
+    """, (simulation_id, user_id))
+
+    conn.commit()
+    conn.close()

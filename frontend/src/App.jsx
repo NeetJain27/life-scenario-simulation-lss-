@@ -3,7 +3,11 @@ import InputForm from "./components/InputForm";
 import ResultsPanel from "./components/ResultsPanel";
 import Login from "./components/Login";
 import HistoryPanel from "./components/HistoryPanel";
-import { simulateLifeScenario, fetchSimulationHistory } from "./api/simulate";
+import {
+  simulateLifeScenario,
+  fetchSimulationHistory,
+  deleteSimulation, // ✅ ADD
+} from "./api/simulate";
 import { getMe, logout } from "./api/auth";
 import "./App.css";
 
@@ -70,7 +74,6 @@ export default function App() {
       starting_savings: 0,
     };
 
-    // ✅ Correct validation
     if (
       payload.monthly_income <= 0 ||
       payload.monthly_expenses < 0 ||
@@ -97,7 +100,7 @@ export default function App() {
     }
   }
 
-  // 📝 HISTORY CLICK → PREFILL ONLY
+  // 📝 HISTORY CLICK → PREFILL
   function handleHistorySelect(item) {
     const key = `${item.created_at}-${item.monthly_income}-${item.goal_amount}`;
     setSelectedHistoryKey(key);
@@ -110,6 +113,16 @@ export default function App() {
     });
 
     setShowResults(false);
+  }
+
+  // 🗑 DELETE HISTORY ITEM
+  async function handleDeleteHistory(id) {
+    const ok = window.confirm("Delete this simulation?");
+    if (!ok) return;
+
+    await deleteSimulation(id);
+    setHistory(history.filter(h => h.id !== id));
+    setSelectedHistoryKey(null);
   }
 
   if (checkingSession) return <p>Checking session…</p>;
@@ -144,6 +157,7 @@ export default function App() {
             history={history}
             selectedKey={selectedHistoryKey}
             onSelect={handleHistorySelect}
+            onDelete={handleDeleteHistory} // ✅ ADD
           />
         </div>
       </div>

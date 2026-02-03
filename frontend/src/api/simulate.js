@@ -37,3 +37,14 @@ export async function fetchSimulationHistory() {
 
   return await response.json();
 }
+
+export async function deleteSimulation(id) {
+  const res = await fetch(`http://localhost:8000/history/${id}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to delete simulation");
+  }
+}

@@ -12,6 +12,7 @@ from backend.auth.routes import router as auth_router
 from fastapi import Depends
 from backend.auth.dependencies import get_current_user
 from backend.memory.store import get_user_simulations
+from backend.memory.store import delete_simulation
 
 
 from backend.simulator.core import build_api_response
@@ -93,4 +94,12 @@ def simulate_life_scenario(
 @app.get("/history")
 def get_history(current_user: dict = Depends(get_current_user)):
     return get_user_simulations(current_user["id"])
-    
+
+@app.delete("/history/{simulation_id}")
+def delete_history_item(
+    simulation_id: int,
+    current_user: dict = Depends(get_current_user)
+):
+    delete_simulation(simulation_id, current_user["id"])
+    return {"status": "deleted"}
+
