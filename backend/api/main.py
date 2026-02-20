@@ -1,24 +1,37 @@
 import uuid
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 from backend.api.ai import router as ai_router
 from backend.api.ai import generate_ai_insight, SimulationInput
-from backend.memory.store import add_simulation
-from backend.memory.store import init_db
-from fastapi import Request, Response
+from backend.memory.store import add_simulation, init_db
 from backend.auth.users import init_users_table
 from backend.auth.routes import router as auth_router
-from fastapi import Depends
 from backend.auth.dependencies import get_current_user
-from backend.memory.store import get_user_simulations
-from backend.memory.store import delete_simulation
-
-
+from backend.memory.store import get_user_simulations, delete_simulation
 from backend.simulator.core import build_api_response
 
-
 app = FastAPI(title="Life Scenario Simulator API")
+
+# 🔐 Rate Limiter Setup
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests. Please try again later."},
+    )
+
+
 init_db()
 init_users_table()
 
@@ -30,9 +43,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ ADD THIS LINE
 app.include_router(ai_router)
 app.include_router(auth_router)
+
 
 class SimulationRequest(BaseModel):
     monthly_income: float
@@ -41,64 +54,71 @@ class SimulationRequest(BaseModel):
     months: int
     starting_savings: float = 0
 
+
 @app.get("/")
 def root():
     return {"status": "Life Scenario Simulator API is running"}
 
 
 @app.post("/simulate")
+@limiter.limit("20/minute")  # 🔐 Protect simulation endpoint
 def simulate_life_scenario(
-    request: SimulationRequest,
-    current_user: dict = Depends(get_current_user)
+    request: Request,
+    body: SimulationRequest,
+    current_user: dict = Depends(get_current_user),
 ):
-    # 1️⃣ Get authenticated user ID
     user_id = current_user["id"]
 
-    # 2️⃣ Run financial simulation
     simulation_result = build_api_response(
-        monthly_income=request.monthly_income,
-        monthly_expenses=request.monthly_expenses,
-        goal_amount=request.goal_amount,
-        months=request.months,
-        starting_savings=request.starting_savings
+        monthly_income=body.monthly_income,
+        monthly_expenses=body.monthly_expenses,
+        goal_amount=body.goal_amount,
+        months=body.months,
+        starting_savings=body.starting_savings,
     )
 
-    # 3️⃣ Save simulation to persistent memory (USER-SPECIFIC)
     add_simulation(
         user_id,
         {
-            "monthly_income": request.monthly_income,
-            "monthly_expenses": request.monthly_expenses,
-            "goal_amount": request.goal_amount,
-            "months": request.months,
-            "status": simulation_result["status"]
-        }
+            "monthly_income": body.monthly_income,
+            "monthly_expenses": body.monthly_expenses,
+            "goal_amount": body.goal_amount,
+            "months": body.months,
+            "status": simulation_result["status"],
+        },
     )
 
-    # 4️⃣ Generate memory-aware AI insight
     ai_input = SimulationInput(
-        monthly_income=request.monthly_income,
-        monthly_expenses=request.monthly_expenses,
-        goal_amount=request.goal_amount,
-        months=request.months,
-        status=simulation_result["status"]
+        monthly_income=body.monthly_income,
+        monthly_expenses=body.monthly_expenses,
+        goal_amount=body.goal_amount,
+        months=body.months,
+        status=simulation_result["status"],
     )
 
     ai_insight = generate_ai_insight(ai_input, user_id=user_id)
 
-    # 5️⃣ Return response
     return {
         "simulation": simulation_result,
-        "ai_insight": ai_insight
+        "ai_insight": ai_insight,
     }
+
+
 @app.get("/history")
-def get_history(current_user: dict = Depends(get_current_user)):
+@limiter.limit("30/minute")  # 🔐 Protect history endpoint
+def get_history(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+):
     return get_user_simulations(current_user["id"])
 
+
 @app.delete("/history/{simulation_id}")
+@limiter.limit("10/minute")  # 🔐 Protect delete endpoint
 def delete_history_item(
+    request: Request,
     simulation_id: int,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     delete_simulation(simulation_id, current_user["id"])
     return {"status": "deleted"}

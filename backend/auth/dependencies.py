@@ -1,7 +1,8 @@
 from fastapi import Request, HTTPException
 from jose import jwt, JWTError
 from backend.auth.db import get_connection
-from backend.auth.security import SECRET_KEY, ALGORITHM
+from backend.core.config import settings
+from backend.auth.security import ALGORITHM
 
 def get_current_user(request: Request):
     token = request.cookies.get("access_token")
@@ -10,7 +11,7 @@ def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="Not authenticated")
 
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
         user_id = int(payload.get("user_id"))  # 🔴 FIXED LINE
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
