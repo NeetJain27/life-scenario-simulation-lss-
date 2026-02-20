@@ -1,22 +1,32 @@
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Response, Request, Depends
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
 from backend.auth.db import get_connection
 from backend.auth.security import hash_password, verify_password, create_access_token
-from fastapi import Depends
 from backend.auth.dependencies import get_current_user
+
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+# 🔐 Rate limiter for auth routes
+limiter = Limiter(key_func=get_remote_address)
+
 
 class RegisterRequest(BaseModel):
     email: str
     password: str
+
 
 class LoginRequest(BaseModel):
     email: str
     password: str
 
 
+# 🔐 Protect Register (5 attempts per minute)
 @router.post("/register")
-def register(data: RegisterRequest):
+@limiter.limit("5/minute")
+def register(request: Request, data: RegisterRequest):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -34,8 +44,10 @@ def register(data: RegisterRequest):
     return {"message": "User registered successfully"}
 
 
+# 🔐 Protect Login (5 attempts per minute)
 @router.post("/login")
-def login(data: LoginRequest, response: Response):
+@limiter.limit("5/minute")
+def login(request: Request, data: LoginRequest, response: Response):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -58,10 +70,10 @@ def login(data: LoginRequest, response: Response):
         samesite="none",
         secure=True,
         path="/"
-    
     )
 
     return {"message": "Login successful"}
+
 
 @router.get("/me")
 def get_me(current_user: dict = Depends(get_current_user)):
@@ -69,6 +81,7 @@ def get_me(current_user: dict = Depends(get_current_user)):
         "id": current_user["id"],
         "email": current_user["email"]
     }
+
 
 @router.post("/logout")
 def logout(response: Response):

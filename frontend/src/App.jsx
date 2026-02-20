@@ -93,8 +93,8 @@ export default function App() {
       setAiInsight(result.ai_insight);
       setShowResults(true);
       setHistory(await fetchSimulationHistory());
-    } catch {
-      setError("Unable to simulate.");
+    } catch (err) {
+      setError(err.message || "Unable to simulate.");
     } finally {
       setIsLoading(false);
     }

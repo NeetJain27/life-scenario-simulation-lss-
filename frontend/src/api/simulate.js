@@ -15,13 +15,22 @@ export async function simulateLifeScenario(payload) {
   }
 
   if (!response.ok) {
-    throw new Error("Backend request failed");
+  const errorData = await response.json();
+
+  if (Array.isArray(errorData.detail)) {
+    const message = errorData.detail
+      .map(err => err.msg)
+      .join(", ");
+    throw new Error(message);
   }
+
+  throw new Error(errorData.detail || "Backend request failed");
+}
 
   return await response.json();
 }
 
-// ✅ ADD THIS FUNCTION
+
 export async function fetchSimulationHistory() {
   const response = await fetch(`${API_BASE}/history`, {
     credentials: "include",
@@ -32,19 +41,22 @@ export async function fetchSimulationHistory() {
   }
 
   if (!response.ok) {
-    throw new Error("Failed to fetch history");
+    const errorData = await response.json();
+    throw new Error(errorData.detail || "Failed to fetch history");
   }
 
   return await response.json();
 }
 
+
 export async function deleteSimulation(id) {
-  const res = await fetch(`http://localhost:8000/history/${id}`, {
+  const res = await fetch(`${API_BASE}/history/${id}`, {
     method: "DELETE",
     credentials: "include",
   });
 
   if (!res.ok) {
-    throw new Error("Failed to delete simulation");
+    const errorData = await res.json();
+    throw new Error(errorData.detail || "Failed to delete simulation");
   }
 }

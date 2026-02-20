@@ -2,7 +2,7 @@ import uuid
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Depends, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, conint, confloat
 
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -37,7 +37,7 @@ init_users_table()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # frontend URL
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -47,12 +47,13 @@ app.include_router(ai_router)
 app.include_router(auth_router)
 
 
+# 🔐 Hardened Validation Schema
 class SimulationRequest(BaseModel):
-    monthly_income: float
-    monthly_expenses: float
-    goal_amount: float
-    months: int
-    starting_savings: float = 0
+    monthly_income: confloat(gt=0, le=10_000_000)
+    monthly_expenses: confloat(ge=0, le=10_000_000)
+    goal_amount: confloat(gt=0, le=100_000_000)
+    months: conint(gt=0, le=600)  # Max 50 years
+    starting_savings: confloat(ge=0, le=100_000_000) = 0
 
 
 @app.get("/")
@@ -61,7 +62,7 @@ def root():
 
 
 @app.post("/simulate")
-@limiter.limit("20/minute")  # 🔐 Protect simulation endpoint
+@limiter.limit("20/minute")
 def simulate_life_scenario(
     request: Request,
     body: SimulationRequest,
@@ -105,7 +106,7 @@ def simulate_life_scenario(
 
 
 @app.get("/history")
-@limiter.limit("30/minute")  # 🔐 Protect history endpoint
+@limiter.limit("30/minute")
 def get_history(
     request: Request,
     current_user: dict = Depends(get_current_user),
@@ -114,7 +115,7 @@ def get_history(
 
 
 @app.delete("/history/{simulation_id}")
-@limiter.limit("10/minute")  # 🔐 Protect delete endpoint
+@limiter.limit("10/minute")
 def delete_history_item(
     request: Request,
     simulation_id: int,
@@ -122,4 +123,3 @@ def delete_history_item(
 ):
     delete_simulation(simulation_id, current_user["id"])
     return {"status": "deleted"}
-
