@@ -2,7 +2,7 @@ import uuid
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Depends, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, conint, confloat
+from pydantic import BaseModel, Field
 
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -49,11 +49,11 @@ app.include_router(auth_router)
 
 # 🔐 Hardened Validation Schema
 class SimulationRequest(BaseModel):
-    monthly_income: confloat(gt=0, le=10_000_000)
-    monthly_expenses: confloat(ge=0, le=10_000_000)
-    goal_amount: confloat(gt=0, le=100_000_000)
-    months: conint(gt=0, le=600)  # Max 50 years
-    starting_savings: confloat(ge=0, le=100_000_000) = 0
+    monthly_income: float = Field(..., gt=0, le=10_000_000)
+    monthly_expenses: float = Field(..., ge=0, le=10_000_000)
+    goal_amount: float = Field(..., gt=0, le=100_000_000)
+    months: int = Field(..., gt=0, le=600)
+    starting_savings: float = Field(0, ge=0, le=100_000_000)
 
 
 @app.get("/")
