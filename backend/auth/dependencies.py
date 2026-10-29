@@ -12,8 +12,8 @@ def get_current_user(request: Request):
 
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = int(payload.get("user_id"))  # 🔴 FIXED LINE
-    except JWTError:
+        user_id = int(payload.get("user_id"))
+    except (JWTError, TypeError, ValueError):
         raise HTTPException(status_code=401, detail="Invalid token")
 
     conn = get_connection()

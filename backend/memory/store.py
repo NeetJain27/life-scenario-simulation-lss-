@@ -5,6 +5,33 @@ def init_db():
     cursor = conn.cursor()
 
     cursor.execute("""
+        CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            title TEXT NOT NULL,
+            category TEXT NOT NULL,
+            amount REAL NOT NULL CHECK(amount > 0),
+            transaction_type TEXT NOT NULL CHECK(transaction_type IN ('Income', 'Expense')),
+            payment_method TEXT NOT NULL,
+            transaction_date TEXT NOT NULL,
+            import_source TEXT NOT NULL DEFAULT 'manual',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_transactions_user_date ON transactions(user_id, transaction_date DESC)")
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS budgets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            category TEXT NOT NULL,
+            month TEXT NOT NULL,
+            amount REAL NOT NULL CHECK(amount > 0),
+            UNIQUE(user_id, category, month)
+        )
+    """)
+
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS simulations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -23,6 +50,70 @@ def init_db():
         ON simulations (user_id)
     """)
 
+    conn.commit()
+    conn.close()
+
+
+def list_transactions(user_id: int, category=None, payment_method=None, start_date=None, end_date=None, search=None):
+    query = "SELECT id,title,category,amount,transaction_type,payment_method,transaction_date,import_source FROM transactions WHERE user_id=?"
+    params = [user_id]
+    for column, value in (("category", category), ("payment_method", payment_method)):
+        if value:
+            query += f" AND {column}=?"
+            params.append(value)
+    if start_date:
+        query += " AND transaction_date>=?"
+        params.append(start_date)
+    if end_date:
+        query += " AND transaction_date<=?"
+        params.append(end_date)
+    if search:
+        query += " AND (title LIKE ? OR category LIKE ?)"
+        params.extend([f"%{search}%", f"%{search}%"])
+    query += " ORDER BY transaction_date DESC, id DESC LIMIT 500"
+    conn = get_connection()
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def create_transaction(user_id: int, data: dict):
+    conn = get_connection()
+    cur = conn.execute("INSERT INTO transactions(user_id,title,category,amount,transaction_type,payment_method,transaction_date,import_source) VALUES(?,?,?,?,?,?,?,?)", (user_id,data["title"],data["category"],data["amount"],data["type"],data["method"],data["date"],data.get("import_source","manual")))
+    conn.commit()
+    transaction_id = cur.lastrowid
+    conn.close()
+    return transaction_id
+
+
+def update_transaction(user_id: int, transaction_id: int, data: dict):
+    conn = get_connection()
+    cur = conn.execute("UPDATE transactions SET title=?,category=?,amount=?,transaction_type=?,payment_method=?,transaction_date=? WHERE id=? AND user_id=?", (data["title"],data["category"],data["amount"],data["type"],data["method"],data["date"],transaction_id,user_id))
+    conn.commit()
+    changed = cur.rowcount
+    conn.close()
+    return changed
+
+
+def delete_transaction(user_id: int, transaction_id: int):
+    conn = get_connection()
+    cur = conn.execute("DELETE FROM transactions WHERE id=? AND user_id=?", (transaction_id,user_id))
+    conn.commit()
+    changed = cur.rowcount
+    conn.close()
+    return changed
+
+
+def list_budgets(user_id: int, month: str):
+    conn = get_connection()
+    rows = conn.execute("SELECT category,amount,month FROM budgets WHERE user_id=? AND month=? ORDER BY category", (user_id,month)).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def save_budget(user_id: int, category: str, month: str, amount: float):
+    conn = get_connection()
+    conn.execute("INSERT INTO budgets(user_id,category,month,amount) VALUES(?,?,?,?) ON CONFLICT(user_id,category,month) DO UPDATE SET amount=excluded.amount", (user_id,category,month,amount))
     conn.commit()
     conn.close()
 

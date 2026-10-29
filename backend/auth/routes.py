@@ -1,11 +1,13 @@
 from fastapi import APIRouter, HTTPException, Response, Request, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
+import re
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from backend.auth.db import get_connection
 from backend.auth.security import hash_password, verify_password, create_access_token
 from backend.auth.dependencies import get_current_user
+from backend.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -14,13 +16,29 @@ limiter = Limiter(key_func=get_remote_address)
 
 
 class RegisterRequest(BaseModel):
-    email: str
-    password: str
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=12, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value):
+        value = value.strip().lower()
+        if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value):
+            raise ValueError("Enter a valid email address")
+        return value
 
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value):
+        value = value.strip().lower()
+        if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", value):
+            raise ValueError("Enter a valid email address")
+        return value
 
 
 # 🔐 Protect Register (5 attempts per minute)
@@ -33,7 +51,7 @@ def register(request: Request, data: RegisterRequest):
     try:
         cursor.execute(
             "INSERT INTO users (email, hashed_password) VALUES (?, ?)",
-            (data.email, hash_password(data.password))
+        (str(data.email).lower(), hash_password(data.password))
         )
         conn.commit()
     except Exception:
@@ -53,7 +71,7 @@ def login(request: Request, data: LoginRequest, response: Response):
 
     cursor.execute(
         "SELECT id, hashed_password FROM users WHERE email = ?",
-        (data.email,)
+        (str(data.email).lower(),)
     )
     row = cursor.fetchone()
     conn.close()
@@ -66,10 +84,11 @@ def login(request: Request, data: LoginRequest, response: Response):
     response.set_cookie(
         key="access_token",
         value=token,
+        samesite="lax",
+        secure=settings.COOKIE_SECURE,
         httponly=True,
-        samesite="none",
-        secure=True,
-        path="/"
+        path="/",
+        max_age=60 * 60 * 24 * 7,
     )
 
     return {"message": "Login successful"}
@@ -87,6 +106,9 @@ def get_me(current_user: dict = Depends(get_current_user)):
 def logout(response: Response):
     response.delete_cookie(
         key="access_token",
-        path="/"
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=settings.COOKIE_SECURE,
     )
     return {"message": "Logged out"}

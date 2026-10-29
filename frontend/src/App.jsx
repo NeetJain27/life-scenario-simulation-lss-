@@ -1,166 +1,76 @@
-import { useEffect, useState } from "react";
-import InputForm from "./components/InputForm";
-import ResultsPanel from "./components/ResultsPanel";
-import Login from "./components/Login";
-import HistoryPanel from "./components/HistoryPanel";
-import {
-  simulateLifeScenario,
-  fetchSimulationHistory,
-  deleteSimulation, // ✅ ADD
-} from "./api/simulate";
-import { getMe, logout } from "./api/auth";
-import "./App.css";
+import { useEffect, useMemo, useState } from 'react'
+import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { getTransactions, saveTransaction, getBudgets, saveBudget } from './api/finance'
+import { getMe, login, register, logout } from './api/auth'
+import { getProfile, saveProfilePreferences } from './api/profile'
+import { getPersonalizedInsight } from './api/insights'
+import { buildFinancialModel, DEFAULT_PREFERENCES, normalizePreferences } from './logic/financialModel'
+import { buildSpendingAnalysis } from './logic/spendingAnalysis'
+import './App.css'
+import './Extras.css'
+import './Navigation.css'
+import './Personalization.css'
 
-export default function App() {
-  const [isAuthed, setIsAuthed] = useState(false);
-  const [checkingSession, setCheckingSession] = useState(true);
+const demo = [
+  {id:'d1',title:'Monthly salary',category:'Salary',date:'2025-06-01',amount:85000,type:'Income',method:'Bank'},
+  {id:'d2',title:'Apartment rent',category:'Housing',date:'2025-06-02',amount:22000,type:'Expense',method:'Bank'},
+  {id:'d3',title:'Weekly groceries',category:'Groceries',date:'2025-06-03',amount:1840,type:'Expense',method:'UPI'},
+  {id:'d4',title:'Coffee & catch-up',category:'Dining',date:'2025-06-04',amount:560,type:'Expense',method:'UPI'},
+  {id:'d5',title:'Metro card',category:'Transport',date:'2025-06-05',amount:450,type:'Expense',method:'UPI'},
+  {id:'d6',title:'Electricity bill',category:'Utilities',date:'2025-06-06',amount:1320,type:'Expense',method:'UPI'},
+]
+const money = n => `₹${Number(n||0).toLocaleString('en-IN')}`
+const monthNow = () => new Date().toISOString().slice(0,7)
 
-  const [formData, setFormData] = useState({
-    monthly_income: "",
-    monthly_expenses: "",
-    goal_amount: "",
-    months: "",
-  });
-
-  const [showResults, setShowResults] = useState(false);
-  const [resultData, setResultData] = useState(null);
-  const [aiInsight, setAiInsight] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [selectedHistoryKey, setSelectedHistoryKey] = useState(null);
-
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  // 🔐 SESSION + HISTORY
-  useEffect(() => {
-    async function checkSession() {
-      try {
-        await getMe();
-        setIsAuthed(true);
-        setHistory(await fetchSimulationHistory());
-      } catch {
-        setIsAuthed(false);
-      } finally {
-        setCheckingSession(false);
-      }
-    }
-    checkSession();
-  }, []);
-
-  // 🚪 LOGOUT
-  async function handleLogout() {
-    await logout();
-    setIsAuthed(false);
-    setFormData({
-      monthly_income: "",
-      monthly_expenses: "",
-      goal_amount: "",
-      months: "",
-    });
-    setShowResults(false);
-    setResultData(null);
-    setAiInsight(null);
-    setHistory([]);
-    setSelectedHistoryKey(null);
-    setError("");
-  }
-
-  async function handleSimulate() {
-    const payload = {
-      monthly_income: Number(formData.monthly_income),
-      monthly_expenses: Number(formData.monthly_expenses),
-      goal_amount: Number(formData.goal_amount),
-      months: Number(formData.months),
-      starting_savings: 0,
-    };
-
-    if (
-      payload.monthly_income <= 0 ||
-      payload.monthly_expenses < 0 ||
-      payload.goal_amount <= 0 ||
-      payload.months <= 0
-    ) {
-      setError("Please enter valid positive numbers.");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError("");
-
-      const result = await simulateLifeScenario(payload);
-      setResultData(result.simulation);
-      setAiInsight(result.ai_insight);
-      setShowResults(true);
-      setHistory(await fetchSimulationHistory());
-    } catch (err) {
-      setError(err.message || "Unable to simulate.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  // 📝 HISTORY CLICK → PREFILL
-  function handleHistorySelect(item) {
-    const key = `${item.created_at}-${item.monthly_income}-${item.goal_amount}`;
-    setSelectedHistoryKey(key);
-
-    setFormData({
-      monthly_income: item.monthly_income,
-      monthly_expenses: item.monthly_expenses,
-      goal_amount: item.goal_amount,
-      months: item.months,
-    });
-
-    setShowResults(false);
-  }
-
-  // 🗑 DELETE HISTORY ITEM
-  async function handleDeleteHistory(id) {
-    const ok = window.confirm("Delete this simulation?");
-    if (!ok) return;
-
-    await deleteSimulation(id);
-    setHistory(history.filter(h => h.id !== id));
-    setSelectedHistoryKey(null);
-  }
-
-  if (checkingSession) return <p>Checking session…</p>;
-  if (!isAuthed) return <Login onAuth={() => setIsAuthed(true)} />;
-
-  return (
-    <div className="app">
-      <button onClick={handleLogout} style={{ float: "right" }}>
-        Logout
-      </button>
-
-      <div className="layout">
-        {/* LEFT */}
-        <div className="left">
-          <InputForm
-            formData={formData}
-            setFormData={setFormData}
-            onSimulate={handleSimulate}
-            isLoading={isLoading}
-          />
-
-          {error && <p style={{ color: "red" }}>{error}</p>}
-
-          {showResults && (
-            <ResultsPanel result={resultData} aiInsight={aiInsight} />
-          )}
-        </div>
-
-        {/* RIGHT */}
-        <div className="right">
-          <HistoryPanel
-            history={history}
-            selectedKey={selectedHistoryKey}
-            onSelect={handleHistorySelect}
-            onDelete={handleDeleteHistory} // ✅ ADD
-          />
-        </div>
-      </div>
-    </div>
-  );
+export default function App(){
+  const [page,setPage]=useState('home'),[tab,setTab]=useState('Overview'),[user,setUser]=useState(null),[profile,setProfile]=useState(null)
+  const [authMode,setAuthMode]=useState('login'),[auth,setAuth]=useState({email:'',password:''}),[authError,setAuthError]=useState(''),[authNotice,setAuthNotice]=useState('')
+  const [rows,setRows]=useState(demo),[query,setQuery]=useState(''),[category,setCategory]=useState('All'),[method,setMethod]=useState('All')
+  const [formOpen,setFormOpen]=useState(false),[budgetOpen,setBudgetOpen]=useState(false),[budgets,setBudgets]=useState({Groceries:9000,Dining:5000,Transport:4000}),[toast,setToast]=useState('')
+  const [newBudgetCategory,setNewBudgetCategory]=useState(''),[filterOpen,setFilterOpen]=useState(false),[chatOpen,setChatOpen]=useState(false),[chatQuestion,setChatQuestion]=useState(''),[chatMessages,setChatMessages]=useState([{from:'bot',text:'Hi! I can help you find your way around Paisa. Ask me how to add a transaction or set a budget.'}])
+  const [scrolled,setScrolled]=useState(false),[menuOpen,setMenuOpen]=useState(false),[onboardingOpen,setOnboardingOpen]=useState(false),[onboardingStep,setOnboardingStep]=useState(0),[onboarding,setOnboarding]=useState(DEFAULT_PREFERENCES),[aiInsight,setAiInsight]=useState(''),[aiLoading,setAiLoading]=useState(false)
+  const [form,setForm]=useState({title:'',category:'Groceries',amount:'',type:'Expense',method:'UPI',date:new Date().toISOString().slice(0,10)})
+  const say=message=>setToast(message)
+  useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(''),2600);return()=>clearTimeout(timer)},[toast])
+  useEffect(()=>{const update=()=>setScrolled(window.scrollY>90);window.addEventListener('scroll',update,{passive:true});return()=>window.removeEventListener('scroll',update)},[])
+  const load=async account=>{setUser(account);const [transactions,budgetRows,profileRow]=await Promise.all([getTransactions(),getBudgets(monthNow()),getProfile()]);const answers=normalizePreferences(profileRow.onboarding_answers);setProfile(profileRow);setOnboarding(answers);setOnboardingOpen(!profileRow.onboarding_completed);setRows(transactions.map(t=>({id:t.id,title:t.title,category:t.category,date:t.transaction_date,amount:t.amount,type:t.transaction_type,method:t.payment_method})));setBudgets(Object.fromEntries(budgetRows.map(b=>[b.category,b.amount])))}
+  useEffect(()=>{getMe().then(account=>{load(account);setPage('dashboard')}).catch(()=>{})},[])
+  const totals=useMemo(()=>rows.reduce((a,t)=>{a[t.type]=(a[t.type]||0)+Number(t.amount);return a},{Income:0,Expense:0}),[rows])
+  const model=useMemo(()=>buildFinancialModel(rows,budgets,onboarding),[rows,budgets,onboarding])
+  const spendingAnalysis=useMemo(()=>buildSpendingAnalysis(rows,budgets,monthNow()),[rows,budgets])
+  const filtered=rows.filter(t=>(category==='All'||t.category===category)&&(method==='All'||t.method===method)&&`${t.title} ${t.category}`.toLowerCase().includes(query.toLowerCase()))
+  const doAuth=async e=>{e.preventDefault();setAuthError('');setAuthNotice('');try{if(authMode==='register'){const result=await register(auth.email,auth.password);if(!result.session){setAuthNotice('Check your inbox for the verification link. Once verified, come back and log in.');return}}else await login(auth.email,auth.password);await load(await getMe());setPage('dashboard');say('Signed in — your personal dashboard is ready')}catch(err){setAuthError(err.message)}}
+  const add=async e=>{e.preventDefault();try{const created=await saveTransaction(form);setRows(prev=>[{...form,id:created.id,amount:Number(form.amount)},...prev]);setFormOpen(false);setForm({...form,title:'',amount:''});say('Transaction saved securely')}catch(err){say(err.message)}}
+  const saveBudgets=async e=>{e.preventDefault();try{await Promise.all(Object.entries(budgets).map(([category,amount])=>saveBudget({category,month:monthNow(),amount:Number(amount)})));setBudgetOpen(false);say('Monthly budgets saved')}catch(err){say(err.message)}}
+  const finishOnboarding=async e=>{e.preventDefault();try{const saved=await saveProfilePreferences(onboarding);setProfile(saved);setOnboarding(normalizePreferences(saved.onboarding_answers));setOnboardingOpen(false);say('Your dashboard is now personalized')}catch(err){say(err.message)}}
+  const askAiInsight=async()=>{setAiLoading(true);try{const result=await getPersonalizedInsight(model);setAiInsight(result.insight);say('Your private model has been explained')}catch(err){say(err.message)}finally{setAiLoading(false)}}
+  const addBudgetCategory=()=>{const name=newBudgetCategory.trim();if(!name)return;if(Object.keys(budgets).some(x=>x.toLowerCase()===name.toLowerCase())){say('That budget category already exists');return}setBudgets({...budgets,[name]:1000});setNewBudgetCategory('')}
+  const answerHelp=e=>{e.preventDefault();const question=chatQuestion.trim();if(!question)return;const q=question.toLowerCase();let answer='I can help with navigation, accounts, transactions, filters, and budgets. Finance question answering is not enabled.';if(q.includes('budget'))answer='Open your dashboard, choose Budgets, then Edit budgets. Add a category such as Rent, set a monthly limit, and save.';else if(q.includes('filter'))answer='In Recent activity, open Filters to search by description and select one or more categories or payment methods.';else if(q.includes('transaction')||q.includes('upi'))answer='Sign in, choose Add transaction, enter the amount, category, date and payment method, then save it to your private ledger.';else if(q.includes('account')||q.includes('login')||q.includes('sign'))answer='Use Log in for an existing email/password account, or Get started to register. This is email/password authentication, not Google OAuth.';else if(q.includes('family'))answer='Family sharing is planned, but shared accounts and member permissions are not live yet.';setChatMessages([...chatMessages,{from:'you',text:question},{from:'bot',text:answer}]);setChatQuestion('')}
+  const go=where=>{setPage(where);window.scrollTo({top:0,behavior:'smooth'})}
+  const startAuth=mode=>{setAuthMode(mode);go('auth')}
+  const transactionCategories=[...new Set(['Groceries','Dining','Transport','Rent','Housing','Utilities','Health','Shopping','Salary','Other',...Object.keys(budgets)])]
+  const budgetSpent=(budgetCategory)=>rows.filter(t=>{
+    if(t.type!=='Expense')return false
+    const transactionCategory=String(t.category||'').trim().toLowerCase()
+    const budgetName=String(budgetCategory||'').trim().toLowerCase()
+    if(transactionCategory===budgetName)return true
+    // Preserve older entries recorded as Housing when the user later creates a Rent budget.
+    return budgetName==='rent'&&transactionCategory==='housing'&&String(t.title||'').toLowerCase().includes('rent')
+  }).reduce((sum,t)=>sum+Number(t.amount||0),0)
+  const categoryTotals=Object.entries(rows.filter(t=>t.type==='Expense').reduce((acc,t)=>({...acc,[t.category]:(acc[t.category]||0)+Number(t.amount)}),{})).map(([name,amount],i)=>({name,amount,color:['#2a9d8f','#e76f51','#6675d8','#f4a261','#c6c9d3'][i%5]}))
+  return <div className="app-shell">
+    <header className="topbar"><button className={`brand ${scrolled?'brand-scrolled':''}`} aria-label={scrolled?'Back to top':'Paisa home'} onClick={()=>{window.scrollTo({top:0,behavior:'smooth'});if(page!=='dashboard'&&page!=='auth')setPage('home')}}><span className="brand-mark">{scrolled?'↑':'p'}</span>{!scrolled&&<> paisa<span className="brand-dot">.</span></>}</button><button className="menu-toggle" aria-label="Open navigation" aria-expanded={menuOpen} onClick={()=>setMenuOpen(!menuOpen)}><span/><span/><span/></button><nav className={menuOpen?'menu-open':''}><button className={page==='home'?'nav-active':''} onClick={()=>{go('home');setMenuOpen(false)}}>Home</button><button className={page==='dashboard'?'nav-active':''} onClick={()=>{user?go('dashboard'):startAuth('login');setMenuOpen(false)}}>Dashboard</button><button onClick={()=>{if(page!=='home'){setPage('home');setTimeout(()=>document.getElementById('how')?.scrollIntoView({behavior:'smooth'}),100)}else document.getElementById('how')?.scrollIntoView({behavior:'smooth'});setMenuOpen(false)}}>How it works</button></nav><div className="top-actions">{user?<button className="text-button" onClick={async()=>{await logout();setUser(null);setRows(demo);go('home');say('You have signed out')}}>Log out</button>:<button className="text-button" onClick={()=>startAuth('login')}>Log in</button>}<button className="button button-dark button-small" onClick={()=>startAuth('register')}>Get started <span>↗</span></button></div></header>
+    {page==='home'&&<main><section className="hero"><div className="hero-copy"><div className="eyebrow"><span className="eyebrow-dot"/> MONEY, WITH A LITTLE MORE MEANING</div><h1>Feel good about<br/>where your money <span>goes.</span></h1><p className="hero-sub">A calmer way to track spending, find your patterns, and make room for what matters. No spreadsheets, no judgement.</p><div className="hero-actions"><button className="button button-dark" onClick={()=>startAuth('register')}>Start your money story <span>↗</span></button><button className="play-button" onClick={()=>document.getElementById('how')?.scrollIntoView({behavior:'smooth'})}><span>↓</span> See how it works</button></div></div><div className="hero-art"><div className="sun-shape"/><div className="phone-card"><div className="phone-top">✳ paisa <span>•••</span></div><div className="phone-greeting">Your month, so far</div><div className="phone-balance">₹42,680</div><div className="phone-caption">spent this month <span>↓ 8.4%</span></div><div className="mini-chart">{[35,54,42,70,56,83,64,92,67,75,49,58].map((h,i)=><div key={i} style={{height:`${h}%`}}/>)}</div><div className="phone-divider"/><div className="phone-spend">Groceries <b>₹6,240</b></div><div className="phone-spend">Eating out <b>₹3,180</b></div><div className="phone-spend">Transport <b>₹2,450</b></div></div><div className="floating-insight"><span>✦ A little insight</span><p>Your spending patterns, explained simply.</p></div></div></section><section className="trust-strip"><span>MADE FOR REAL LIFE, IN INDIA</span><i/><span>UPI FRIENDLY</span><i/><span>PRIVATE BY DESIGN</span></section><section className="intro-section" id="how"><div><span className="section-kicker">A BETTER KIND OF MONEY APP</span><h2>Your money has a story.<br/><em>Let’s make sense of it.</em></h2></div><p>Track the little spends, see the bigger picture, and make thoughtful choices with your money.</p></section><section className="feature-grid"><article className="feature-card feature-lilac"><span className="feature-number">01 / SEE THE WHOLE PICTURE</span><div className="feature-icon">◒</div><h3>Little spends add up.<br/>Now you’ll know how.</h3><p>Track every chai, cab, and monthly bill.</p><div className="feature-pills"><span>UPI</span><span>Cash</span><span>Card</span></div></article><article className="feature-card feature-peach"><span className="feature-number">02 / FIND YOUR RHYTHM</span><div className="feature-icon">↗</div><h3>Patterns, not<br/>pressure.</h3><p>See how this month compares to the last.</p></article><article className="feature-card feature-mint"><span className="feature-number">03 / MAKE ROOM FOR MORE</span><div className="feature-icon">✳</div><h3>Plans that fit<br/>your real life.</h3><p>Set budgets and save toward what matters.</p></article></section><section className="bottom-cta"><div><span className="section-kicker">WHENEVER YOU’RE READY</span><h2>Make money feel simpler.</h2></div><button className="button button-light" onClick={()=>startAuth('register')}>Take a look around ↗</button></section></main>}
+    {page==='auth'&&<main className="auth-page"><form className="transaction-modal" onSubmit={doAuth}><span className="section-kicker">YOUR MONEY, YOUR SPACE</span><h2>{authMode==='login'?'Welcome back':'Start your Paisa journey'}</h2><p>Your financial data is private to your account.</p><label>Email<input required type="email" value={auth.email} onChange={e=>setAuth({...auth,email:e.target.value})}/></label><label>Password<input required type="password" minLength={authMode==='register'?12:1} value={auth.password} onChange={e=>setAuth({...auth,password:e.target.value})}/></label>{authError&&<p className="empty-state">{authError}</p>}{authNotice&&<p className="auth-notice" role="status">{authNotice}</p>}<button className="button button-dark modal-submit">{authMode==='login'?'Log in':'Create account'} ↗</button><button type="button" className="link-button" onClick={()=>{setAuthMode(authMode==='login'?'register':'login');setAuthError('');setAuthNotice('')}}>{authMode==='login'?'Create an account':'Already registered? Log in'}</button></form></main>}
+    {page==='dashboard'&&<main className="dashboard-page"><div className="dashboard-heading"><div><span className="section-kicker">YOUR MONEY, AT A GLANCE</span><h1>Good morning, <em>{user?.email?.split('@')[0]||'friend'}.</em></h1><p>Here’s your money at a glance. You’re doing better than you think.</p></div><button className="button button-dark" onClick={()=>user?setFormOpen(true):startAuth('login')}>＋ Add transaction</button></div><div className="dashboard-tabs">{['Overview','Transactions','Budgets','Insights'].map(t=><button key={t} className={tab===t?'tab-active':''} onClick={()=>{setTab(t);if(t==='Budgets')document.getElementById('budget-panel')?.scrollIntoView({behavior:'smooth'});if(t==='Transactions')document.getElementById('transactions')?.scrollIntoView({behavior:'smooth'});if(t==='Insights')document.getElementById('insights')?.scrollIntoView({behavior:'smooth'})}}>{t}</button>)}<span className="period-select">◷ &nbsp;{monthNow()}</span></div><div className="summary-grid"><article className="summary-card balance-card"><span>AVAILABLE BALANCE</span><strong>{money(totals.Income-totals.Expense)}</strong><small>Income less recorded spending</small></article><article className="summary-card"><span>INCOME</span><strong>{money(totals.Income)}</strong><small>This account</small></article><article className="summary-card"><span>SPENT</span><strong>{money(totals.Expense)}</strong><small>Across recorded transactions</small></article><article className="summary-card"><span>SAVINGS RATE</span><strong>{totals.Income?Math.round((1-totals.Expense/totals.Income)*100):0}%</strong><small>Based on recorded data</small></article></div><div className="analytics-grid"><article className="panel trend-panel"><div className="panel-heading"><div><h3>Your money flow</h3><p>Income and spending by transaction</p></div></div><ResponsiveContainer width="100%" height={230}><AreaChart data={rows.slice(0,12).reverse()}><CartesianGrid vertical={false} stroke="#f0f0ee"/><XAxis dataKey="date" tickFormatter={d=>d.slice(5)} tick={{fontSize:10}}/><YAxis tickFormatter={v=>`₹${v/1000}k`} tick={{fontSize:10}}/><Tooltip formatter={v=>money(v)}/><Area dataKey="amount" stroke="#2a9d8f" fill="#d9eee9"/></AreaChart></ResponsiveContainer></article><article className="panel category-panel"><div className="panel-heading"><div><h3>Where it went</h3><p>Spending by category</p></div></div><div className="donut-wrap"><ResponsiveContainer width="100%" height={190}><PieChart><Pie data={categoryTotals} dataKey="amount" nameKey="name" innerRadius={55} outerRadius={80}>{categoryTotals.map(c=><Cell key={c.name} fill={c.color}/>)}</Pie><Tooltip formatter={money}/></PieChart></ResponsiveContainer><div className="donut-center"><b>{money(totals.Expense)}</b><span>total spent</span></div></div></article></div>
+      <div className="lower-grid"><article className="panel budget-panel" id="budget-panel"><div className="panel-heading"><div><h3>Your monthly budgets</h3><p>Set a limit and keep an eye on your pace</p></div><button className="link-button" onClick={()=>user?setBudgetOpen(true):startAuth('login')}>Edit budgets ↗</button></div>{Object.entries(budgets).map(([name,limit],i)=>{const spent=budgetSpent(name);const color=['#2a9d8f','#e76f51','#6675d8'][i%3];return <div className="budget-row" key={name}><div className="budget-row-top"><span>{name}</span><small><b>{money(spent)}</b> of {money(limit)}</small></div><div className="progress-track"><i style={{width:`${Math.min(spent/limit*100,100)}%`,background:color}}/></div></div>})}</article><article className="insight-panel" id="insights"><div className="insight-heading"><span>✦ YOUR SPENDING STORY</span></div><h3>Small details reveal your rhythm.</h3><p>{categoryTotals.length?`Your recorded spending is ${money(totals.Expense)} across ${categoryTotals.length} categories. Compare these totals as your history grows.`:'Add some transactions and we’ll show clear, explainable patterns here.'}</p></article></div>
+      <section className="panel transactions-panel" id="transactions"><div className="panel-heading"><div><h3>Recent activity</h3><p>Your recorded transactions</p></div><button className="select-button" onClick={()=>setFilterOpen(!filterOpen)}>{filterOpen?'Hide filters':'☷ Filters'}</button></div><div className={`filters ${filterOpen?'filters-open':''}`}><label className="search-box">⌕ <input placeholder="Search transactions..." value={query} onChange={e=>setQuery(e.target.value)}/></label><select value={category} onChange={e=>setCategory(e.target.value)}><option value="All">All categories</option>{[...new Set(rows.map(t=>t.category))].map(c=><option key={c}>{c}</option>)}</select><select value={method} onChange={e=>setMethod(e.target.value)}><option value="All">All methods</option>{['UPI','Cash','Card','Bank','Other'].map(m=><option key={m}>{m}</option>)}</select><button className="select-button" onClick={()=>{setQuery('');setCategory('All');setMethod('All')}}>Clear</button></div><div className="table-wrap"><table><thead><tr><th>TRANSACTION</th><th>CATEGORY</th><th>DATE</th><th>METHOD</th><th>AMOUNT</th></tr></thead><tbody>{filtered.map(t=><tr key={t.id}><td><b>{t.title}</b></td><td>{t.category}</td><td>{t.date}</td><td>{t.method}</td><td>{t.type==='Income'?'+':'−'}{money(t.amount)}</td></tr>)}</tbody></table>{!filtered.length&&<p className="empty-state">No transactions match the selected filters.</p>}</div></section></main>}
+    {formOpen&&<div className="modal-backdrop"><form className="transaction-modal" onSubmit={add}><button type="button" className="modal-close" onClick={()=>setFormOpen(false)}>×</button><span className="section-kicker">ADD TO YOUR LEDGER</span><h2>New transaction</h2><label>Description<input required maxLength="80" value={form.title} placeholder="e.g. Ice cream" onChange={e=>setForm({...form,title:e.target.value})}/></label><div className="form-row"><label>Amount (₹)<input required type="number" min="0.01" step="0.01" value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})}/></label><label>Date<input required type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/></label></div><div className="form-row"><label>Type<select value={form.type} onChange={e=>setForm({...form,type:e.target.value})}><option>Expense</option><option>Income</option></select></label><label>Category<select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>{transactionCategories.map(x=><option key={x}>{x}</option>)}</select></label></div><label>Payment method<select value={form.method} onChange={e=>setForm({...form,method:e.target.value})}>{['UPI','Cash','Card','Bank','Other'].map(x=><option key={x}>{x}</option>)}</select></label><button className="button button-dark modal-submit">Save transaction ↗</button></form></div>}
+    {budgetOpen&&<div className="modal-backdrop"><form className="transaction-modal" onSubmit={saveBudgets}><button type="button" className="modal-close" onClick={()=>setBudgetOpen(false)}>×</button><span className="section-kicker">A BUDGET THAT FITS</span><h2>Monthly budgets</h2><p>Add your own categories, like rent or healthcare.</p>{Object.entries(budgets).map(([name,value])=><label key={name}>{name} (₹)<input type="number" min="1" required value={value} onChange={e=>setBudgets({...budgets,[name]:e.target.value})}/></label>)}<div className="new-category"><input maxLength="40" placeholder="New category, e.g. Rent" value={newBudgetCategory} onChange={e=>setNewBudgetCategory(e.target.value)}/><button type="button" className="select-button" onClick={addBudgetCategory}>＋ Add category</button></div><button className="button button-dark modal-submit">Save budgets ↗</button></form></div>}
+    <button className="chat-launch" onClick={()=>setChatOpen(!chatOpen)}>✦ Help</button>{chatOpen&&<aside className="help-chat"><div><b>Paisa guide</b><button onClick={()=>setChatOpen(false)}>×</button></div><section>{chatMessages.map((m,i)=><p key={i} className={m.from}>{m.text}</p>)}</section><form onSubmit={answerHelp}><input value={chatQuestion} onChange={e=>setChatQuestion(e.target.value)} placeholder="Ask how to use Paisa…"/><button>Send</button></form><small>Product help only · Not financial advice</small></aside>}
+    {toast&&<div className="toast"><span>✳</span>{toast}<button onClick={()=>setToast('')}>×</button></div>}
+    {onboardingOpen&&<div className="modal-backdrop onboarding-backdrop"><form className="transaction-modal onboarding-modal" onSubmit={finishOnboarding}><span className="section-kicker">MAKE PAISA YOURS</span><h2>{onboardingStep===0?'What are you working toward?':onboardingStep===1?'What should we focus on?':'Tell us about the goal.'}</h2><p>{onboardingStep===0?'There is no wrong answer. Your choice changes the way your dashboard explains your money.':onboardingStep===1?'Rate each area from 0 to 10. These weights guide the model; they do not judge your spending.':'You can leave the goal details blank and add them later.'}</p>{onboardingStep===0&&<div className="goal-options">{[['understand_spending','Understand my spending','See patterns and know where money goes.'],['build_savings','Build savings','Create room for saving every month.'],['reach_goal','Reach a specific goal','Plan toward a purchase or milestone.'],['pay_down_debt','Reduce financial pressure','Keep repayments and essentials visible.'],['family_budget','Plan with my family','Make shared spending easier to understand.']].map(([value,label,description])=><button type="button" key={value} className={onboarding.primary_goal===value?'goal-option selected':'goal-option'} onClick={()=>setOnboarding({...onboarding,primary_goal:value})}><b>{label}</b><small>{description}</small></button>)}</div>}{onboardingStep===1&&<div className="priority-list">{[['saving','Saving money'],['spending_control','Cutting unnecessary spending'],['budget_consistency','Staying within budgets'],['goal_progress','Progress toward my goal'],['family_visibility','Family visibility']].map(([key,label])=><label className="priority-row" key={key}><span><b>{label}</b><em>{onboarding.priorities[key]}/10</em></span><input type="range" min="0" max="10" value={onboarding.priorities[key]} onChange={e=>setOnboarding({...onboarding,priorities:{...onboarding.priorities,[key]:Number(e.target.value)}})}/></label>)}</div>}{onboardingStep===2&&<div className="goal-details"><label>Goal name<input maxLength="80" placeholder="e.g. Emergency fund" value={onboarding.goal_title} onChange={e=>setOnboarding({...onboarding,goal_title:e.target.value})}/></label><label>Target amount (₹)<input type="number" min="0" step="1" placeholder="Optional" value={onboarding.goal_amount} onChange={e=>setOnboarding({...onboarding,goal_amount:e.target.value})}/></label><label>Approximate monthly income (₹)<input type="number" min="0" step="1" placeholder="Optional" value={onboarding.monthly_income} onChange={e=>setOnboarding({...onboarding,monthly_income:e.target.value})}/></label><label>Target date<input type="date" value={onboarding.goal_date} onChange={e=>setOnboarding({...onboarding,goal_date:e.target.value})}/></label></div>}<div className="onboarding-actions">{onboardingStep>0&&<button type="button" className="link-button" onClick={()=>setOnboardingStep(onboardingStep-1)}>Back</button>}<button type={onboardingStep===2?'submit':'button'} className="button button-dark" onClick={()=>onboardingStep<2&&setOnboardingStep(onboardingStep+1)}>{onboardingStep===2?'Save my plan':'Continue'} ↗</button></div><small className="onboarding-progress">Step {onboardingStep+1} of 3</small></form></div>}
+    {model&&page==='dashboard'&&<div className="model-strip"><span>PERSONAL MODEL</span><b>{model.score}/100</b><small>Focus: {model.focus}</small><small>{profile?.onboarding_completed?'Personalized from your profile':'Complete onboarding to personalize'}</small>{import.meta.env.VITE_ENABLE_AI_INSIGHTS==='true'&&<button className="select-button" onClick={askAiInsight} disabled={aiLoading}>{aiLoading?'Explaining…':'Explain with AI ↗'}</button>}{aiInsight&&<p>{aiInsight}</p>}</div>}
+    {spendingAnalysis&&page==='dashboard'&&<section className="analysis-grid"><article className="panel comparison-panel"><div className="panel-heading"><div><h3>Month to month</h3><p>{spendingAnalysis.currentMonth} compared with {spendingAnalysis.previousMonth}</p></div></div><div className="comparison-stats"><div><span>Spending</span><b>{money(spendingAnalysis.current.expense)}</b><small>{spendingAnalysis.previous.expense?`${spendingAnalysis.current.expense>=spendingAnalysis.previous.expense?'↑':'↓'} ${Math.abs(Math.round((spendingAnalysis.current.expense-spendingAnalysis.previous.expense)/spendingAnalysis.previous.expense*100))}% vs last month`:'No previous month data yet'}</small></div><div><span>Income</span><b>{money(spendingAnalysis.current.income)}</b><small>{spendingAnalysis.previous.income?`${money(spendingAnalysis.current.income-spendingAnalysis.previous.income)} change vs last month`:'No previous month data yet'}</small></div><div><span>Savings</span><b>{money(spendingAnalysis.current.income-spendingAnalysis.current.expense)}</b><small>{spendingAnalysis.current.income?`${Math.round((spendingAnalysis.current.income-spendingAnalysis.current.expense)/spendingAnalysis.current.income*100)}% of recorded income`:'Add income to calculate savings'}</small></div></div><div className="category-changes"><b>Biggest category changes</b>{spendingAnalysis.changes.length?spendingAnalysis.changes.map(item=><div key={item.category}><span>{item.category}</span><small>{item.previous?`${item.change>=0?'↑':'↓'} ${Math.abs(item.changePercent)}%`:'New this month'}</small><strong>{money(item.current)}</strong></div>):<p>Record spending this month and we’ll compare it with {spendingAnalysis.previousMonth}.</p>}</div></article><article className="panel alert-panel"><div className="panel-heading"><div><h3>Budget check-in</h3><p>Alerts use this month’s transactions and limits</p></div></div>{spendingAnalysis.alerts.length?spendingAnalysis.alerts.map(alert=><p className={`budget-alert ${alert.level}`} key={alert.category}><span>{alert.level==='over'?'↑':alert.level==='near'?'◔':'✓'}</span>{alert.text}</p>):<p className="budget-alert neutral">No spending recorded against your budgets this month yet.</p>}</article></section>}
+  </div>
 }
